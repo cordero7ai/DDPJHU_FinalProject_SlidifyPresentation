@@ -5,8 +5,10 @@
 
 
 
-The presentation can be found at []().
+The presentation can be found at [](). It is coded in the index.Rmd file in this repository.
+
 The shiny app can be found at [https://cordero.shinyapps.io/FOREXAPP/](https://cordero.shinyapps.io/FOREXAPP/).
+
 The github repository for the shiny app is in [https://github.com/corderoai/DDPJHU_Final_Project_ShinyApp](https://github.com/corderoai/DDPJHU_Final_Project_ShinyApp).
 
 

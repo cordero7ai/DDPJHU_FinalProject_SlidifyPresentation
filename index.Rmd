@@ -1,0 +1,261 @@
+---
+title: "Sales Pitch Final Project DDP: FOREX Currency Converter Shiny App"
+author: "jc"
+date: "8/10/2020"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The foreign exchange market (Forex) is a global non-centralized market for trading currencies. The dynamics of this market automatically determine the **foreign exchange rates** for all currencies. It is actually the largest market in the world of trading. 
+An foreign exchange rate (FER) is the amount of change that one currency will be exchanged for another [[1]](https://en.wikipedia.org/wiki/Exchange_rate). In other words, it is the value of one country's currency in relation to another currency. However, despite of many skeptiscim by many world renamed economists the exchange rates can be changed by each country authority. It is very important to keep track of the changes that different currencies are taking in real time in order to perform a good trading task. Moreover, historical Data about currency exchange rates is the basis for making FOREX analysis and perhaps predictions. 
+
+In this shyny app we show different currency exchange rates accross time for many countries. The Data was obtained using a dataset from the [Federal Reserve Bank of Saint Louis](https://fred.stlouisfed.org) that was stored at [https://datahub.io/core/exchange-rates](https://datahub.io/core/exchange-rates). 
+
+This app can be found at: [https://cordero.shinyapps.io/FOREXAPP/](https://cordero.shinyapps.io/FOREXAPP/)
+
+## The Application
+
+![Shiny App](data/app.png)
+
+
+The github repository for the shiny app is in [https://github.com/corderoai/DDPJHU_Final_Project_ShinyApp](https://github.com/corderoai/DDPJHU_Final_Project_ShinyApp).
+
+## Time Series of Currency Conversion Rates (Interactive)
+
+```{r toShow}
+countrieYearlyER <- read.csv("./data/yearly_csv.csv")
+
+```
+
+```{r fig1fake, echo = FALSE}
+suppressMessages(library(dygraphs))
+suppressMessages(library(xts))
+suppressMessages(library(sqldf))
+suppressMessages(library(countrycode))
+suppressMessages(library(dygraphs))
+suppressMessages(library(DT))
+
+countrieYearlyER <- read.csv("./data/yearly_csv.csv")
+calculateFURate <- function(dfRow){
+    if(dfRow["Country"] %in% c("Australia","Euro","Ireland","New Zealand","United Kingdom"))
+    {
+        return(1/as.numeric(dfRow["Value"]))
+    }   
+    else
+    {
+        return(as.numeric(dfRow["Value"]))
+    }    
+}
+
+calculateUFRate <- function(dfRow){
+    if(dfRow["Country"] %in% c("Australia","Euro","Ireland","New Zealand","United Kingdom"))
+    {
+        return(as.numeric(dfRow["Value"]))
+    }   
+    else
+    {
+        return(1/as.numeric(dfRow["Value"]))
+    }    
+}
+
+populateRatesOfCurrencies <- function(dfER){
+        
+       dfER$FU <- apply(dfER, 1, calculateFURate)
+       dfER$UF <- apply(dfER, 1, calculateUFRate)
+       
+        return(dfER)
+}
+
+countrieYearlyERFUUF <- populateRatesOfCurrencies(countrieYearlyER)
+#str(countrieYearlyERFUUF)
+
+getCurrenciesCatalog <- function(){
+    currencyCodes <- read.csv("./data/codes-all_csv.csv")
+    listOfCountries <- unique(countrieYearlyER$Country)
+    finalCurrencyDf <- data.frame(countryName=character(), 
+                                  countryAbbreviation=character(),
+                                  currencyName=character(),	
+                                  currencyCode=character() 
+    )
+    for(country in  listOfCountries)
+    {
+        if(country != "Euro" & country != "South Korea" & country != "Taiwan")
+        {	
+            coname <- country
+            abbrv <- countrycode(country, origin = 'country.name', destination = 'iso3c')
+            currN <- fn$sqldf("SELECT Currency AS \"currencyName\"
+				        FROM currencyCodes
+				        WHERE UPPER(currencyCodes.Entity) = UPPER('$country')
+				        LIMIT 1")
+            currC <- fn$sqldf("SELECT AlphabeticCode AS \"currencyCode\"
+
+				        FROM currencyCodes
+				        WHERE UPPER(currencyCodes.Entity) = UPPER('$country')
+				        LIMIT 1")
+        }
+        else if(country == "Euro")
+        { 
+            coname <- "Euro"
+            abbrv <- "EU"    
+            currN <- "Euro"
+            currC <- "EUR"	
+        }
+        else if(country == "South Korea")
+        { 
+            coname <- "South Korea"
+            abbrv <- "KOR"    
+            currN <- "Korean Won"
+            currC <- "KRW"	
+        }
+        else if(country == "Taiwan")
+        { 
+            coname <- "Taiwan"
+            abbrv <- "TWN"    
+            currN <- "New Taiwan Dollar"
+            currC <- "TWD"	
+        }
+        
+        finalCurrencyDf <- rbind(finalCurrencyDf, 
+                                 data.frame(countryName=coname, 
+                                            countryAbbreviation=abbrv,
+                                            currencyName=currN,	
+                                            currencyCode=currC
+                                 ))		
+    }
+    
+    finalCurrencyDf <- rbind(finalCurrencyDf, 
+                             data.frame(countryName="United States", 
+                                        countryAbbreviation="USA",
+                                        currencyName="US Dollar",	
+                                        currencyCode="USD"
+                             ))
+    finalCurrencyDf["displayed"] <- NA
+    for(row in  1:nrow(finalCurrencyDf))
+    {
+        aux1 <- paste0( finalCurrencyDf[row, "currencyCode"], " - ")
+        aux2 <- paste0( aux1, finalCurrencyDf[row, "currencyName"])
+        finalCurrencyDf[row, "displayed"] <- aux2
+    }
+    
+    return(finalCurrencyDf)
+}    
+
+currencyCatalog <- getCurrenciesCatalog()
+
+#print(currencyCatalog)
+
+fromc <- "USD - US Dollar"
+toc <- "MXN - Mexican Peso"
+
+yearlyData <<- countrieYearlyERFUUF[countrieYearlyERFUUF$Country == currencyCatalog[currencyCatalog$displayed == toc, ]$countryName, ]
+#print(yearlyData)
+
+ FUPlot1Data <- data.frame(time=yearlyData$Date, 
+                                    value=yearlyData$FU
+           )
+ tsFUPlot1Data <- xts(x = FUPlot1Data$value, order.by = as.POSIXct(FUPlot1Data$time))
+  ts <- tsFUPlot1Data
+  
+  ylabel <- "Exchange Rate Accross Time"
+  serieslabel <- paste(currencyCatalog[currencyCatalog$displayed == fromc, ]$currencyCode, "-",
+                           currencyCatalog[currencyCatalog$displayed == toc, ]$currencyCode)
+  mainlabel <- paste(currencyCatalog[currencyCatalog$displayed == fromc, ]$displayed, " to ",
+                           currencyCatalog[currencyCatalog$displayed == toc, ]$displayed,  
+                           ". (Interactive Plot)", sep = "")
+ dygraph(ts, main = mainlabel) %>%
+               dyAxis("y", label = ylabel) %>% 
+               dySeries("V1", label = serieslabel ) %>%
+               dyLegend(show = "follow", hideOnMouseOut = FALSE) %>%
+               dyOptions(axisLineWidth = 2.5, fillGraph = TRUE, includeZero = TRUE, 
+                         axisLineColor = "red", fillAlpha = 0.4, drawPoints = TRUE,
+                         gridLineColor = "navy")
+```
+
+This plot was made with R code (dygrpahs package) with echo = FALSE.
+
+## Some Tables
+
+```{r table1, echo = FALSE}
+year <- 2016
+
+setCurrencies <- function(fromDisplayed, toDisplayed){
+    fromCountryName <<- currencyCatalog[currencyCatalog$displayed == fromDisplayed, ]$countryName
+    fromCountryAbbreviation <<- currencyCatalog[currencyCatalog$displayed == fromDisplayed, ]$countryAbbreviation
+    fromCurrencyName <<- currencyCatalog[currencyCatalog$displayed == fromDisplayed, ]$currencyName
+    fromCurrencyCode <<- currencyCatalog[currencyCatalog$displayed == fromDisplayed, ]$currencyCode
+    toCountryName <<- currencyCatalog[currencyCatalog$displayed == toDisplayed, ]$countryName
+    toCountryAbbreviation <<- currencyCatalog[currencyCatalog$displayed == toDisplayed, ]$countryAbbreviation
+    toCurrencyName <<- currencyCatalog[currencyCatalog$displayed == toDisplayed, ]$currencyName
+    toCurrencyCode <<- currencyCatalog[currencyCatalog$displayed == toDisplayed, ]$currencyCode
+}
+
+makeAtomicExchangeConversion <- function(fromCurrency, toCurrency, amount, givenDate, dfERFUUF){
+    #print("--------------------------")
+    #print(paste(amount, paste(paste(fromCurrency, "to"), toCurrency)))
+    
+    finalAmount <- 1
+    if(fromCurrency == "USD"){   # from USD to X Currency   
+        logicalQueryFrom <- (dfERFUUF[(dfERFUUF$Date== givenDate & dfERFUUF$Country == toCountryName), ])
+        #print("To Currency:")
+        #print(logicalQueryFrom)
+        finalAmount <- amount * logicalQueryFrom$FU
+        #print("Final Converted Amount:")
+        #print(finalAmount)
+    }
+    else if(toCurrency == "USD"){ # from X Currency to USD
+        logicalQueryTo <- (dfERFUUF[(dfERFUUF$Date== givenDate & dfERFUUF$Country == fromCountryName), ])
+        #print("To USD:")
+        #print(logicalQueryTo)
+        finalAmount <- amount * logicalQueryTo$UF
+        #print("Final Converted Amount:")
+        #print(finalAmount)
+    }
+    else{   # from X Currency to Y Currency = (X to USD) to Y Currency
+        logicalQueryTo <- (dfERFUUF[(dfERFUUF$Date== givenDate & dfERFUUF$Country == fromCountryName), ])
+        logicalQueryFrom <- (dfERFUUF[(dfERFUUF$Date== givenDate & dfERFUUF$Country == toCountryName), ])
+        #print("From Currency:")
+        #print(logicalQueryTo)
+        #print("To Currency:")
+        #print(logicalQueryFrom)
+        #print(toCountryName)
+        #print(givenDate)
+        amountUSD <- amount * logicalQueryTo$UF
+        finalAmount <- amountUSD * logicalQueryFrom$FU
+        #print("Final Converted Amount:")
+        #print(finalAmount)
+    }
+    
+    if(length(finalAmount) == 0){ 
+        finalAmount <- 0
+    }
+    
+    return(finalAmount)
+}
+setCurrencies(fromc, toc)
+    
+    dataTable <- data.frame(
+          from =  character(),
+          to = character()
+    )
+    
+ amounts <- c(1,5,10,25,50,100,500,1000,5000,10000, 50000, 100000)
+    
+    for(c in amounts){
+        amountConverted <<- makeAtomicExchangeConversion(fromCurrencyCode, toCurrencyCode, c, 
+                                                         as.Date(paste(year,1,1,sep="-")), countrieYearlyERFUUF)
+        new_row <- c(paste(sprintf("%3.2f", c), fromCurrencyCode),paste(sprintf("%3.2f", amountConverted), toCurrencyCode))
+        dataTable <- rbind(dataTable, new_row)    
+    }
+    
+    colnames(dataTable)[1] <- fromCurrencyCode
+    colnames(dataTable)[2] <- toCurrencyCode    
+    
+ DT::datatable(dataTable)   
+```
+
+This table was made with R code with echo = FALSE.
