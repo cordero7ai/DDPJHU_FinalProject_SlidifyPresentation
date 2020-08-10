@@ -5,7 +5,7 @@
 
 
 
-The presentation can be found at [](). It is coded in the index.Rmd file in this repository.
+The presentation can be found at [https://corderoai.github.io/DDPJHU_FinalProject_SlidifyPresentation/]( https://corderoai.github.io/DDPJHU_FinalProject_SlidifyPresentation/). It is coded in the index.Rmd file in this repository.
 
 The shiny app can be found at [https://cordero.shinyapps.io/FOREXAPP/](https://cordero.shinyapps.io/FOREXAPP/).
 
